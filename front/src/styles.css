@@ -61,6 +61,14 @@ body {
   padding: 0;
 }
 
+.chat aside .logout {
+  margin-top: 1rem;
+  width: 100%;
+  background: transparent;
+  color: #78716c;
+  border: 1px solid #d6d3d1;
+}
+
 .chat main {
   flex: 1;
   display: flex;

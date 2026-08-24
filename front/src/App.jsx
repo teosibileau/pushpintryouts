@@ -1,26 +1,38 @@
 import { useEffect, useRef, useState } from 'react'
 
+async function api(path, options = {}) {
+  const res = await fetch(`/api/${path}`, {
+    method: options.body ? 'POST' : 'GET',
+    headers: options.body ? { 'Content-Type': 'application/json' } : {},
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  })
+  const data = res.status === 204 ? null : await res.json().catch(() => null)
+  return { ok: res.ok, data }
+}
+
 export default function App() {
   const wsRef = useRef(null)
-  const [connected, setConnected] = useState(false)
+  const [checked, setChecked] = useState(false)
   const [me, setMe] = useState(null)
   const [messages, setMessages] = useState([])
   const [roster, setRoster] = useState([])
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    api('me').then(({ ok, data }) => {
+      if (ok) setMe(data.username)
+      setChecked(true)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!me) return
     const proto = location.protocol === 'https:' ? 'wss' : 'ws'
     const ws = new WebSocket(`${proto}://${location.host}/ws`)
     wsRef.current = ws
-    ws.onopen = () => setConnected(true)
-    ws.onclose = () => setConnected(false)
     ws.onmessage = (e) => {
       const frame = JSON.parse(e.data)
       switch (frame.event) {
-        case 'authenticated':
-          setMe(frame.username)
-          setError(null)
-          break
         case 'message':
           setMessages((prev) => [...prev, frame])
           break
@@ -41,12 +53,30 @@ export default function App() {
       }
     }
     return () => ws.close()
-  }, [])
+  }, [me])
 
-  const send = (payload) => wsRef.current?.send(JSON.stringify(payload))
+  const authenticate = async (action, username, password) => {
+    const { ok, data } = await api(action, { body: { username, password } })
+    if (ok) {
+      setError(null)
+      setMe(data.username)
+    } else {
+      setError(data?.detail ? JSON.stringify(data.detail) : 'request failed')
+    }
+  }
 
+  const logoutUser = async () => {
+    await api('logout', { body: {} })
+    wsRef.current?.close()
+    setMe(null)
+    setMessages([])
+    setRoster([])
+    setError(null)
+  }
+
+  if (!checked) return null
   if (!me) {
-    return <AuthForm connected={connected} error={error} onSubmit={send} />
+    return <AuthForm error={error} onSubmit={authenticate} />
   }
   return (
     <Chat
@@ -54,24 +84,24 @@ export default function App() {
       messages={messages}
       roster={roster}
       error={error}
-      onSend={(text) => send({ action: 'message', text })}
+      onSend={(text) => wsRef.current?.send(JSON.stringify({ action: 'message', text }))}
+      onLogout={logoutUser}
     />
   )
 }
 
-function AuthForm({ connected, error, onSubmit }) {
+function AuthForm({ error, onSubmit }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
 
   const submit = (action) => (e) => {
     e.preventDefault()
-    onSubmit({ action, username, password })
+    onSubmit(action, username, password)
   }
 
   return (
     <div className="auth">
       <h1>Pushpin Chat</h1>
-      <p className="status">{connected ? 'socket connected' : 'connecting…'}</p>
       <form onSubmit={submit('login')}>
         <input
           placeholder="username"
@@ -86,10 +116,8 @@ function AuthForm({ connected, error, onSubmit }) {
           onChange={(e) => setPassword(e.target.value)}
         />
         <div className="buttons">
-          <button type="submit" disabled={!connected}>
-            Login
-          </button>
-          <button type="button" disabled={!connected} onClick={submit('register')}>
+          <button type="submit">Login</button>
+          <button type="button" onClick={submit('register')}>
             Register
           </button>
         </div>
@@ -99,7 +127,7 @@ function AuthForm({ connected, error, onSubmit }) {
   )
 }
 
-function Chat({ me, messages, roster, error, onSend }) {
+function Chat({ me, messages, roster, error, onSend, onLogout }) {
   const [text, setText] = useState('')
   const bottomRef = useRef(null)
 
@@ -123,6 +151,9 @@ function Chat({ me, messages, roster, error, onSend }) {
             <li key={u}>{u === me ? `${u} (you)` : u}</li>
           ))}
         </ul>
+        <button className="logout" onClick={onLogout}>
+          Logout
+        </button>
       </aside>
       <main>
         <div className="messages">

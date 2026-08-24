@@ -1,10 +1,11 @@
 # Pushpin chat PoC
 
-Single-group chat where the browser talks only to a WebSocket. Pushpin
-translates the socket into GRIP WebSocket-over-HTTP requests against a
-plain WSGI Django backend. Registration, login, messaging and presence
-all travel as JSON frames on the one socket; Django and Pushpin are not
-reachable from the host.
+Single-group chat behind Pushpin. Registration and login are normal
+HTTP calls to a DRF api that sets a Django session cookie; the cookie
+then authenticates the WebSocket handshake, and Pushpin translates the
+socket into GRIP WebSocket-over-HTTP requests against a plain WSGI
+Django backend. Messages and presence travel as frames on the socket.
+Django and Pushpin are not reachable from the host.
 
 ## Topology
 
@@ -31,16 +32,17 @@ Open http://localhost:5173 in two browsers, register two users, chat.
 
 ## Protocol
 
-Client → server frames:
+HTTP (JSON, session cookie): `POST /api/register`, `POST /api/login`,
+`POST /api/logout`, `GET /api/me`.
 
-- `{"action": "register", "username": "...", "password": "..."}`
-- `{"action": "login", "username": "...", "password": "..."}`
-- `{"action": "message", "text": "..."}`
+WebSocket: anonymous handshakes are refused with a 401. On an
+authenticated handshake the server pushes the last 50 messages, the
+online roster and an `authenticated` frame, then subscribes the
+connection to the group channel. The only client → server frame is
+`{"action": "message", "text": "..."}`; server → client frames are
+`authenticated`, `message`, `roster`, `joined`, `left`, `error`.
 
-Server → client frames: `authenticated`, `message`, `roster`, `joined`,
-`left`, `error`.
-
-Auth is a Postgres table mapping Pushpin's connection id to a user,
-written at login and removed on disconnect. No sessions, no tokens.
-The table is wiped on Django startup since sockets cannot survive a
-stack restart.
+Frames after the handshake carry no browser cookie, so a Postgres
+table maps Pushpin's connection id to a user, written at handshake and
+removed on disconnect. The table is wiped on Django startup since
+sockets cannot survive a stack restart.

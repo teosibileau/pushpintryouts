@@ -9,14 +9,23 @@ ALLOWED_HOSTS = ["*"]
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
+    "django.contrib.sessions",
     "rest_framework",
     "chat",
 ]
 
 MIDDLEWARE = [
     "django_grip.GripMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
 ]
+
+REST_FRAMEWORK = {
+    # Session auth without CSRF enforcement: the only authenticated
+    # mutations travel over the websocket, and this is an internal PoC api.
+    "DEFAULT_AUTHENTICATION_CLASSES": ["chat.auth.CsrfExemptSessionAuthentication"],
+}
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"

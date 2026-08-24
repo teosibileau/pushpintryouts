@@ -1,10 +1,13 @@
 import json
 
 import pytest
+from django.contrib.auth.models import AnonymousUser
+from django.test import RequestFactory
 
 from chat import services
 from chat.models import Connection, Message
-from chat.views import _handle_frame
+from chat.tests.conftest import FakeWs
+from chat.views import _handle_frame, ws_view
 
 pytestmark = pytest.mark.django_db
 
@@ -13,45 +16,41 @@ def frame(**kwargs):
     return json.dumps(kwargs)
 
 
+def handshake(user, ws):
+    request = RequestFactory().get("/ws")
+    request.user = user
+    request.wscontext = ws
+    return ws_view(request)
+
+
+class TestHandshake:
+    def test_anonymous_is_refused(self, published):
+        ws = FakeWs(opening=True)
+        response = handshake(AnonymousUser(), ws)
+        assert response.status_code == 401
+        assert not ws.accepted
+
+    def test_authenticated_enters_chat(self, alice, published):
+        services.message_create(user=alice, text="old message")
+        ws = FakeWs(opening=True)
+        response = handshake(alice, ws)
+        assert response.status_code == 200
+        assert ws.accepted
+        assert [m["text"] for m in ws.events("message")] == ["old message"]
+        assert ws.events("roster") == [{"event": "roster", "usernames": ["alice"]}]
+        assert ws.events("authenticated") == [{"event": "authenticated", "username": "alice"}]
+        assert ws.subscribed == [services.CHAT_CHANNEL]
+        assert Connection.objects.filter(connection_id=ws.id, user=alice).exists()
+
+
 class TestFrameParsing:
     def test_invalid_json(self, ws, published):
         _handle_frame(ws, "not json")
         assert ws.events("error") == [{"event": "error", "detail": "invalid frame"}]
 
     def test_unknown_action(self, ws, published):
-        _handle_frame(ws, frame(action="dance"))
-        assert ws.events("error")[0]["detail"] == "unknown action: dance"
-
-    def test_missing_fields_reports_serializer_errors(self, ws, published):
-        _handle_frame(ws, frame(action="login", username="alice"))
-        assert "password" in ws.events("error")[0]["detail"]
-
-
-class TestRegister:
-    def test_enters_chat(self, ws, published):
-        _handle_frame(ws, frame(action="register", username="bob", password="pw12345"))
-        assert ws.events("authenticated") == [{"event": "authenticated", "username": "bob"}]
-        assert ws.events("roster") == [{"event": "roster", "usernames": ["bob"]}]
-        assert ws.subscribed == [services.CHAT_CHANNEL]
-        assert Connection.objects.filter(connection_id=ws.id, user__username="bob").exists()
-
-    def test_taken_username(self, ws, alice, published):
-        _handle_frame(ws, frame(action="register", username="alice", password="pw12345"))
-        assert ws.events("error")[0]["detail"] == "username taken"
-        assert ws.subscribed == []
-
-
-class TestLogin:
-    def test_wrong_password(self, ws, alice, published):
-        _handle_frame(ws, frame(action="login", username="alice", password="nope"))
-        assert ws.events("error")[0]["detail"] == "invalid credentials"
-        assert ws.subscribed == []
-
-    def test_receives_history_and_roster(self, ws, alice, published):
-        services.message_create(user=alice, text="old message")
-        _handle_frame(ws, frame(action="login", username="alice", password="secret123"))
-        assert [m["text"] for m in ws.events("message")] == ["old message"]
-        assert ws.events("roster") == [{"event": "roster", "usernames": ["alice"]}]
+        _handle_frame(ws, frame(action="login"))
+        assert ws.events("error")[0]["detail"] == "unknown action: login"
 
 
 class TestMessage:
@@ -61,6 +60,11 @@ class TestMessage:
         assert not Message.objects.exists()
 
     def test_authenticated_connection_creates_message(self, ws, alice, published):
-        _handle_frame(ws, frame(action="login", username="alice", password="secret123"))
+        services.connection_open(connection_id=ws.id, user=alice)
         _handle_frame(ws, frame(action="message", text="hi"))
         assert Message.objects.filter(user=alice, text="hi").exists()
+
+    def test_missing_text_reports_serializer_errors(self, ws, alice, published):
+        services.connection_open(connection_id=ws.id, user=alice)
+        _handle_frame(ws, frame(action="message"))
+        assert "text" in ws.events("error")[0]["detail"]
