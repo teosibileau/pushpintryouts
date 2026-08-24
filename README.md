@@ -16,6 +16,11 @@ browser ── ws://localhost:5173/ws ──▶ vite (proxy) ──▶ pushpin �
 
 ## Run
 
+Note for colima users: the VM must mount this directory for the front
+bind mount to work, e.g. `colima start --mount "$PWD:w"`. The pushpin
+routes file is baked into a small derived image instead of bind-mounted
+for the same reason.
+
 ```
 ahoy docker build
 ahoy docker up

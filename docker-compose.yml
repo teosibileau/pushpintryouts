@@ -28,9 +28,7 @@ services:
         condition: service_healthy
 
   pushpin:
-    image: fanout/pushpin
-    volumes:
-      - ./pushpin/routes:/etc/pushpin/routes:ro
+    build: ./pushpin
     depends_on:
       - django
     # ports:
