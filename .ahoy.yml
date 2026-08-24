@@ -1,0 +1,11 @@
+ahoyapi: v2
+usage: Pushpin chat PoC - Django + Pushpin + Postgres + Vite front
+commands:
+  docker:
+    usage: Run docker compose commands
+    imports:
+      - .ahoy/docker.ahoy.yml
+
+  manage:
+    usage: Run a Django management command
+    cmd: ahoy docker compose exec django python manage.py $@
