@@ -73,7 +73,12 @@ def ws_view(request):
         ws.accept()
 
     while ws.can_recv():
-        raw = ws.recv()
+        try:
+            raw = ws.recv()
+        except IOError:
+            # abrupt disconnect (tab closed, network drop); the socket is gone
+            services.connection_close(connection_id=ws.id)
+            break
         if raw is None:
             services.connection_close(connection_id=ws.id)
             ws.close()
