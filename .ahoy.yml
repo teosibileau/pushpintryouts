@@ -6,6 +6,10 @@ commands:
     imports:
       - .ahoy/docker.ahoy.yml
 
+  test:
+    usage: Run the Django test suite
+    cmd: ahoy docker compose exec django pytest $@
+
   manage:
     usage: Run a Django management command
     cmd: ahoy docker compose exec django python manage.py $@
