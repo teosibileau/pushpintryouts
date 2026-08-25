@@ -10,10 +10,26 @@ Django and Pushpin are not reachable from the host.
 ## Topology
 
 ```
-browser ── ws://localhost:5173/ws ──▶ vite (proxy) ──▶ pushpin ──▶ django ──▶ postgres
-                                                        ▲                │
-                                                        └── publish ◀────┘
+browser ── http://localhost:5173 ──▶ vite dev server
+              /api/* and /ws  ──▶  (proxy) ──▶ pushpin ──▶ django ──▶ postgres
+                                                 ▲                │
+                                                 └── publish ◀────┘
 ```
+
+The Vite dev server on port 5173 is the only published port. It serves
+the React app and proxies `/api` and `/ws` to Pushpin, which is the
+sole way into Django. Django publishes outbound frames to Pushpin's
+control port (5561) via `django-grip`.
+
+## Stack
+
+- `backend/`: Django 5 + DRF, WSGI under gunicorn, Poetry-managed.
+  HackSoft-style layout: `services.py` and `selectors.py` hold the
+  logic, `apis.py` and `views.py` stay thin.
+- `front/`: React + Vite, one WebSocket plus a few fetch calls.
+- `pushpin/`: a two-line image baking in the routes file
+  (`* django:8000,over_http`).
+- Postgres 16 for users, messages and live connections.
 
 ## Run
 
@@ -29,6 +45,8 @@ ahoy docker log
 ```
 
 Open http://localhost:5173 in two browsers, register two users, chat.
+Other useful commands: `ahoy test` (pytest in the django container),
+`ahoy manage <cmd>` (manage.py), `ahoy docker ps|stop|reset|destroy`.
 
 ## Protocol
 
@@ -44,5 +62,16 @@ connection to the group channel. The only client → server frame is
 
 Frames after the handshake carry no browser cookie, so a Postgres
 table maps Pushpin's connection id to a user, written at handshake and
-removed on disconnect. The table is wiped on Django startup since
-sockets cannot survive a stack restart.
+removed on disconnect. Presence broadcasts fire on a user's first
+connection and last disconnect, so extra tabs stay silent. The table
+is wiped on Django startup since sockets cannot survive a stack
+restart.
+
+## Tests and CI
+
+`ahoy test` runs the pytest suite (services, frame protocol, api
+endpoints, handshake auth) against Postgres inside the stack. GitHub
+Actions runs three jobs on push and PR: ruff lint and format check,
+the pytest suite against a Postgres service, and a Vite production
+build. Ruff and the test deps are in the Poetry dev group, so the same
+checks run identically in the container, locally and in CI.

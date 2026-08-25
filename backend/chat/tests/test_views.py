@@ -38,7 +38,9 @@ class TestHandshake:
         assert ws.accepted
         assert [m["text"] for m in ws.events("message")] == ["old message"]
         assert ws.events("roster") == [{"event": "roster", "usernames": ["alice"]}]
-        assert ws.events("authenticated") == [{"event": "authenticated", "username": "alice"}]
+        assert ws.events("authenticated") == [
+            {"event": "authenticated", "username": "alice"}
+        ]
         assert ws.subscribed == [services.CHAT_CHANNEL]
         assert Connection.objects.filter(connection_id=ws.id, user=alice).exists()
 

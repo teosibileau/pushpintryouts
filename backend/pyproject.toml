@@ -1,0 +1,28 @@
+[project]
+name = "pushpin-chat-backend"
+version = "0.1.0"
+description = "Pushpin chat PoC backend"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "Django (>=5.0,<6.0)",
+    "djangorestframework (>=3.15)",
+    "django-grip (>=3.4)",
+    "gunicorn (>=22.0)",
+    "psycopg[binary] (>=3.1)",
+]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0"
+pytest-django = ">=4.8"
+ruff = "0.16.4"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = ["chat/migrations"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
