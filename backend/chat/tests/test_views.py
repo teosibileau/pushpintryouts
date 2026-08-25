@@ -7,7 +7,7 @@ from django.test import RequestFactory
 from chat import services
 from chat.models import Connection, Message
 from chat.tests.conftest import FakeWs
-from chat.views import ws_view
+from chat.views import WsView
 from chat.ws import ChatConnection
 
 pytestmark = pytest.mark.django_db
@@ -18,10 +18,10 @@ def frame(**kwargs):
 
 
 def handshake(user, ws):
-    request = RequestFactory().get("/ws")
+    request = RequestFactory().post("/ws")
     request.user = user
     request.wscontext = ws
-    return ws_view(request)
+    return WsView.as_view()(request)
 
 
 class TestHandshake:
