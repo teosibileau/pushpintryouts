@@ -1,12 +1,12 @@
 from django.urls import path
 
-from chat.apis import login_api, logout_api, me_api, register_api
+from chat.apis import LoginApi, LogoutApi, MeApi, RegisterApi
 from chat.views import WsView
 
 urlpatterns = [
     path("ws", WsView.as_view()),
-    path("api/register", register_api),
-    path("api/login", login_api),
-    path("api/logout", logout_api),
-    path("api/me", me_api),
+    path("api/register", RegisterApi.as_view()),
+    path("api/login", LoginApi.as_view()),
+    path("api/logout", LogoutApi.as_view()),
+    path("api/me", MeApi.as_view()),
 ]
