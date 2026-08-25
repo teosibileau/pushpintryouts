@@ -38,13 +38,19 @@ def user_login(*, username: str, password: str) -> User | None:
 
 def connection_open(*, connection_id: str, user: User) -> None:
     first = not Connection.objects.filter(user=user).exists()
-    Connection.objects.update_or_create(connection_id=connection_id, defaults={"user": user})
+    Connection.objects.update_or_create(
+        connection_id=connection_id, defaults={"user": user}
+    )
     if first:
         _broadcast({"event": "joined", "username": user.username})
 
 
 def connection_close(*, connection_id: str) -> None:
-    connection = Connection.objects.select_related("user").filter(connection_id=connection_id).first()
+    connection = (
+        Connection.objects.select_related("user")
+        .filter(connection_id=connection_id)
+        .first()
+    )
     if connection is None:
         return
     user = connection.user
@@ -54,7 +60,11 @@ def connection_close(*, connection_id: str) -> None:
 
 
 def connection_user(*, connection_id: str) -> User | None:
-    connection = Connection.objects.select_related("user").filter(connection_id=connection_id).first()
+    connection = (
+        Connection.objects.select_related("user")
+        .filter(connection_id=connection_id)
+        .first()
+    )
     return connection.user if connection else None
 
 
