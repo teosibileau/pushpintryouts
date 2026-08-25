@@ -24,6 +24,29 @@ def handshake(user, ws):
     return WsView.as_view()(request)
 
 
+class TestNonWebsocketRequest:
+    def test_is_rejected_by_the_decorator(self):
+        request = RequestFactory().post("/ws")
+        request.user = AnonymousUser()
+        request.wscontext = None
+        response = WsView.as_view()(request)
+        assert response.status_code == 400
+
+    def test_websocket_events_accept_header_is_not_406(self, client, alice, published):
+        # regression: DRF content negotiation must ignore Pushpin's Accept
+        # header, and django-grip must round-trip the event framing
+        client.post("/api/login", {"username": "alice", "password": "secret123"})
+        response = client.post(
+            "/ws",
+            data=b"OPEN\r\n",
+            content_type="application/websocket-events",
+            HTTP_ACCEPT="application/websocket-events",
+            HTTP_CONNECTION_ID="test-conn",
+        )
+        assert response.status_code == 200
+        assert response.content.startswith(b"OPEN")
+
+
 class TestHandshake:
     def test_anonymous_is_refused(self, published):
         ws = FakeWs(opening=True)
