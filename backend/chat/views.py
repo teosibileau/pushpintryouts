@@ -4,7 +4,7 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 
 from chat import selectors, services
-from chat.serializers import CredentialsFrameSerializer, MessageFrameSerializer
+from chat.serializers import MessageFrameSerializer
 
 
 def _send(ws, payload: dict) -> None:
@@ -33,23 +33,7 @@ def _handle_frame(ws, raw: str) -> None:
         _send_error(ws, "invalid frame")
         return
 
-    if action in ("register", "login"):
-        serializer = CredentialsFrameSerializer(data=frame)
-        if not serializer.is_valid():
-            _send_error(ws, serializer.errors)
-            return
-        if action == "register":
-            user = services.user_register(**serializer.validated_data)
-            if user is None:
-                _send_error(ws, "username taken")
-                return
-        else:
-            user = services.user_login(**serializer.validated_data)
-            if user is None:
-                _send_error(ws, "invalid credentials")
-                return
-        _enter_chat(ws, user)
-    elif action == "message":
+    if action == "message":
         user = services.connection_user(connection_id=ws.id)
         if user is None:
             _send_error(ws, "not authenticated")
@@ -70,7 +54,11 @@ def ws_view(request):
         return HttpResponseBadRequest("websocket only")
 
     if ws.is_opening():
+        # the handshake carries the session cookie; anonymous sockets are refused
+        if not request.user.is_authenticated:
+            return HttpResponse(status=401)
         ws.accept()
+        _enter_chat(ws, request.user)
 
     while ws.can_recv():
         try:

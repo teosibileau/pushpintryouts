@@ -8,10 +8,29 @@ from django.contrib.auth.models import User
 class FakeWs:
     """Stands in for gripcontrol's WebSocketContext in view tests."""
 
-    def __init__(self, connection_id="conn-1"):
+    def __init__(self, connection_id="conn-1", opening=False):
         self.id = connection_id
+        self.opening = opening
+        self.accepted = False
+        self.closed = False
         self.sent = []
         self.subscribed = []
+        self.incoming = []
+
+    def is_opening(self):
+        return self.opening
+
+    def accept(self):
+        self.accepted = True
+
+    def close(self):
+        self.closed = True
+
+    def can_recv(self):
+        return bool(self.incoming)
+
+    def recv(self):
+        return self.incoming.pop(0)
 
     def send(self, raw):
         self.sent.append(json.loads(raw))

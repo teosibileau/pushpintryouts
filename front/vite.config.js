@@ -9,6 +9,9 @@ export default defineConfig({
         target: 'http://pushpin:7999',
         ws: true,
       },
+      '/api': {
+        target: 'http://pushpin:7999',
+      },
     },
   },
 })
