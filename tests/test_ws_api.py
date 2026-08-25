@@ -1,8 +1,8 @@
 import json
 
 import pytest
-from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from chat import services
 from chat.api import WsView
@@ -17,9 +17,13 @@ def frame(**kwargs):
     return json.dumps(kwargs)
 
 
-def handshake(user, ws):
-    request = RequestFactory().post("/ws")
-    request.user = user
+def access_token(user):
+    return str(RefreshToken.for_user(user).access_token)
+
+
+def handshake(ws, token=None):
+    path = f"/ws?token={token}" if token else "/ws"
+    request = RequestFactory().post(path)
     request.wscontext = ws
     return WsView.as_view()(request)
 
@@ -27,7 +31,6 @@ def handshake(user, ws):
 class TestNonWebsocketRequest:
     def test_is_rejected_by_the_decorator(self):
         request = RequestFactory().post("/ws")
-        request.user = AnonymousUser()
         request.wscontext = None
         response = WsView.as_view()(request)
         assert response.status_code == 400
@@ -35,9 +38,8 @@ class TestNonWebsocketRequest:
     def test_websocket_events_accept_header_is_not_406(self, client, alice, published):
         # regression: DRF content negotiation must ignore Pushpin's Accept
         # header, and django-grip must round-trip the event framing
-        client.post("/api/login", {"username": "alice", "password": "secret123"})
         response = client.post(
-            "/ws",
+            f"/ws?token={access_token(alice)}",
             data=b"OPEN\r\n",
             content_type="application/websocket-events",
             HTTP_ACCEPT="application/websocket-events",
@@ -50,14 +52,20 @@ class TestNonWebsocketRequest:
 class TestHandshake:
     def test_anonymous_is_refused(self, published):
         ws = FakeWs(opening=True)
-        response = handshake(AnonymousUser(), ws)
+        response = handshake(ws)
+        assert response.status_code == 401
+        assert not ws.accepted
+
+    def test_garbage_token_is_refused(self, published):
+        ws = FakeWs(opening=True)
+        response = handshake(ws, token="garbage")
         assert response.status_code == 401
         assert not ws.accepted
 
     def test_authenticated_enters_chat(self, alice, published):
         services.message_create(user=alice, text="old message")
         ws = FakeWs(opening=True)
-        response = handshake(alice, ws)
+        response = handshake(ws, token=access_token(alice))
         assert response.status_code == 200
         assert ws.accepted
         assert [m["text"] for m in ws.events("message")] == ["old message"]

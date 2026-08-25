@@ -9,6 +9,7 @@ dependencies = [
     "django-grip (>=3.4)",
     "gunicorn (>=22.0)",
     "psycopg[binary] (>=3.1)",
+    "djangorestframework-simplejwt (>=5.5.1,<6.0.0)",
 ]
 
 [tool.poetry]
