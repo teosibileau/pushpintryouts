@@ -1,7 +1,6 @@
 from django.urls import path
 
-from chat.apis import LoginApi, LogoutApi, MeApi, RegisterApi
-from chat.views import WsView
+from chat.api import LoginApi, LogoutApi, MeApi, RegisterApi, WsView
 
 urlpatterns = [
     path("ws", WsView.as_view()),

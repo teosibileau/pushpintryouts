@@ -5,8 +5,8 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
 from chat import services
+from chat.api import WsView
 from chat.models import Connection, Message
-from chat.views import WsView
 from chat.ws import ChatConnection
 from tests.conftest import FakeWs
 
