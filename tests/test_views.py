@@ -6,9 +6,9 @@ from django.test import RequestFactory
 
 from chat import services
 from chat.models import Connection, Message
-from chat.tests.conftest import FakeWs
 from chat.views import WsView
 from chat.ws import ChatConnection
+from tests.conftest import FakeWs
 
 pytestmark = pytest.mark.django_db
 

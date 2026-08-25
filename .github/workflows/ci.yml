@@ -16,9 +16,9 @@ jobs:
       - run: pipx install poetry
       - run: poetry install --no-root
         working-directory: backend
-      - run: poetry run ruff check .
+      - run: poetry run ruff check ..
         working-directory: backend
-      - run: poetry run ruff format --check .
+      - run: poetry run ruff format --check ..
         working-directory: backend
 
   backend-tests:
