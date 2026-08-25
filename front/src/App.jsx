@@ -1,9 +1,33 @@
 import { useEffect, useRef, useState } from 'react'
 
+const tokens = {
+  get access() {
+    try {
+      return localStorage.getItem('access')
+    } catch {
+      return null
+    }
+  },
+  save(access, refresh) {
+    try {
+      localStorage.setItem('access', access)
+      localStorage.setItem('refresh', refresh)
+    } catch {}
+  },
+  clear() {
+    try {
+      localStorage.removeItem('access')
+      localStorage.removeItem('refresh')
+    } catch {}
+  },
+}
+
 async function api(path, options = {}) {
+  const headers = options.body ? { 'Content-Type': 'application/json' } : {}
+  if (tokens.access) headers.Authorization = `Bearer ${tokens.access}`
   const res = await fetch(`/api/${path}`, {
     method: options.body ? 'POST' : 'GET',
-    headers: options.body ? { 'Content-Type': 'application/json' } : {},
+    headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   })
   const data = res.status === 204 ? null : await res.json().catch(() => null)
@@ -19,8 +43,13 @@ export default function App() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (!tokens.access) {
+      setChecked(true)
+      return
+    }
     api('me').then(({ ok, data }) => {
       if (ok) setMe(data.username)
+      else tokens.clear()
       setChecked(true)
     })
   }, [])
@@ -28,7 +57,7 @@ export default function App() {
   useEffect(() => {
     if (!me) return
     const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    const ws = new WebSocket(`${proto}://${location.host}/ws`)
+    const ws = new WebSocket(`${proto}://${location.host}/ws?token=${tokens.access}`)
     wsRef.current = ws
     ws.onmessage = (e) => {
       const frame = JSON.parse(e.data)
@@ -58,6 +87,7 @@ export default function App() {
   const authenticate = async (action, username, password) => {
     const { ok, data } = await api(action, { body: { username, password } })
     if (ok) {
+      tokens.save(data.access, data.refresh)
       setError(null)
       setMe(data.username)
     } else {
@@ -65,8 +95,8 @@ export default function App() {
     }
   }
 
-  const logoutUser = async () => {
-    await api('logout', { body: {} })
+  const logoutUser = () => {
+    tokens.clear()
     wsRef.current?.close()
     setMe(null)
     setMessages([])
