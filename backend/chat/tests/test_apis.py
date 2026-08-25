@@ -5,13 +5,17 @@ pytestmark = pytest.mark.django_db
 
 class TestRegister:
     def test_creates_user_and_session(self, client):
-        response = client.post("/api/register", {"username": "bob", "password": "pw12345"})
+        response = client.post(
+            "/api/register", {"username": "bob", "password": "pw12345"}
+        )
         assert response.status_code == 201
         assert response.json() == {"username": "bob"}
         assert client.get("/api/me").json() == {"username": "bob"}
 
     def test_taken_username(self, client, alice):
-        response = client.post("/api/register", {"username": "alice", "password": "pw12345"})
+        response = client.post(
+            "/api/register", {"username": "alice", "password": "pw12345"}
+        )
         assert response.status_code == 400
         assert response.json() == {"detail": "username taken"}
 
@@ -22,7 +26,9 @@ class TestRegister:
 
 class TestLogin:
     def test_valid_credentials_set_session(self, client, alice):
-        response = client.post("/api/login", {"username": "alice", "password": "secret123"})
+        response = client.post(
+            "/api/login", {"username": "alice", "password": "secret123"}
+        )
         assert response.status_code == 200
         assert client.get("/api/me").json() == {"username": "alice"}
 

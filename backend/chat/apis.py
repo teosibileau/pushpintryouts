@@ -13,7 +13,9 @@ def register_api(request):
     serializer.is_valid(raise_exception=True)
     user = services.user_register(**serializer.validated_data)
     if user is None:
-        return Response({"detail": "username taken"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "username taken"}, status=status.HTTP_400_BAD_REQUEST
+        )
     login(request, user)
     return Response({"username": user.username}, status=status.HTTP_201_CREATED)
 
@@ -24,7 +26,9 @@ def login_api(request):
     serializer.is_valid(raise_exception=True)
     user = services.user_login(**serializer.validated_data)
     if user is None:
-        return Response({"detail": "invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"detail": "invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
+        )
     login(request, user)
     return Response({"username": user.username})
 
@@ -38,5 +42,7 @@ def logout_api(request):
 @api_view(["GET"])
 def me_api(request):
     if not request.user.is_authenticated:
-        return Response({"detail": "not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"detail": "not authenticated"}, status=status.HTTP_401_UNAUTHORIZED
+        )
     return Response({"username": request.user.username})
