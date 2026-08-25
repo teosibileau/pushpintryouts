@@ -1,11 +1,13 @@
 # Pushpin chat PoC
 
 Single-group chat behind Pushpin. Registration and login are normal
-HTTP calls to a DRF api that sets a Django session cookie; the cookie
-then authenticates the WebSocket handshake, and Pushpin translates the
-socket into GRIP WebSocket-over-HTTP requests against a plain WSGI
-Django backend. Messages and presence travel as frames on the socket.
-Django and Pushpin are not reachable from the host.
+HTTP calls to a DRF api that return a JWT pair (simplejwt); the access
+token authenticates api calls as a Bearer header and the WebSocket
+handshake as a ?token= query parameter, since browsers cannot set
+headers on an upgrade. Pushpin translates the socket into GRIP
+WebSocket-over-HTTP requests against a plain WSGI Django backend.
+Messages and presence travel as frames on the socket. Django and
+Pushpin are not reachable from the host.
 
 ## Topology
 
@@ -50,11 +52,14 @@ Other useful commands: `ahoy test` (pytest in the django container),
 
 ## Protocol
 
-HTTP (JSON, session cookie): `POST /api/register`, `POST /api/login`,
-`POST /api/logout`, `GET /api/me`.
+HTTP (JSON): `POST /api/register` and `POST /api/login` return
+`{username, access, refresh}`; `POST /api/refresh` renews the access
+token; `GET /api/me` identifies the Bearer token. There is no logout
+endpoint: discarding the tokens is the logout.
 
-WebSocket: anonymous handshakes are refused with a 401. On an
-authenticated handshake the server pushes the last 50 messages, the
+WebSocket: the client connects to `/ws?token=<access>`; handshakes
+without a valid token are refused with a 401. On an authenticated
+handshake the server pushes the last 50 messages, the
 online roster and an `authenticated` frame, then subscribes the
 connection to the group channel. The only client → server frame is
 `{"action": "message", "text": "..."}`; server → client frames are
