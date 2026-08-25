@@ -7,7 +7,8 @@ from django.test import RequestFactory
 from chat import services
 from chat.models import Connection, Message
 from chat.tests.conftest import FakeWs
-from chat.views import _handle_frame, ws_view
+from chat.views import ws_view
+from chat.ws import ChatConnection
 
 pytestmark = pytest.mark.django_db
 
@@ -47,26 +48,26 @@ class TestHandshake:
 
 class TestFrameParsing:
     def test_invalid_json(self, ws, published):
-        _handle_frame(ws, "not json")
+        ChatConnection(ws).handle_frame("not json")
         assert ws.events("error") == [{"event": "error", "detail": "invalid frame"}]
 
     def test_unknown_action(self, ws, published):
-        _handle_frame(ws, frame(action="login"))
+        ChatConnection(ws).handle_frame(frame(action="login"))
         assert ws.events("error")[0]["detail"] == "unknown action: login"
 
 
 class TestMessage:
     def test_unauthenticated_connection_is_rejected(self, ws, published):
-        _handle_frame(ws, frame(action="message", text="hi"))
+        ChatConnection(ws).handle_frame(frame(action="message", text="hi"))
         assert ws.events("error")[0]["detail"] == "not authenticated"
         assert not Message.objects.exists()
 
     def test_authenticated_connection_creates_message(self, ws, alice, published):
         services.connection_open(connection_id=ws.id, user=alice)
-        _handle_frame(ws, frame(action="message", text="hi"))
+        ChatConnection(ws).handle_frame(frame(action="message", text="hi"))
         assert Message.objects.filter(user=alice, text="hi").exists()
 
     def test_missing_text_reports_serializer_errors(self, ws, alice, published):
         services.connection_open(connection_id=ws.id, user=alice)
-        _handle_frame(ws, frame(action="message"))
+        ChatConnection(ws).handle_frame(frame(action="message"))
         assert "text" in ws.events("error")[0]["detail"]
