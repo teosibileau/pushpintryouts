@@ -2,7 +2,7 @@ import pytest
 
 from chat import services
 from chat.models import Connection, Message
-from chat.tests.conftest import published_events
+from tests.conftest import published_events
 
 pytestmark = pytest.mark.django_db
 

@@ -9,6 +9,7 @@ dependencies = [
     "django-grip (>=3.4)",
     "gunicorn (>=22.0)",
     "psycopg[binary] (>=3.1)",
+    "djangorestframework-simplejwt (>=5.5.1,<6.0.0)",
 ]
 
 [tool.poetry]
@@ -18,11 +19,3 @@ package-mode = false
 pytest = ">=8.0"
 pytest-django = ">=4.8"
 ruff = "0.16.4"
-
-[tool.ruff]
-line-length = 88
-target-version = "py312"
-extend-exclude = ["chat/migrations"]
-
-[tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "UP"]

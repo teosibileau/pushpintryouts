@@ -14,7 +14,9 @@ services:
       retries: 15
 
   django:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -22,7 +24,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST: postgres
       GRIP_URL: http://pushpin:5561
-    command: sh -c "python manage.py migrate && gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2"
+    command: sh -c "cd backend && python manage.py migrate && gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2"
     depends_on:
       postgres:
         condition: service_healthy

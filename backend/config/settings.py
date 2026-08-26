@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -9,22 +10,24 @@ ALLOWED_HOSTS = ["*"]
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
-    "django.contrib.sessions",
     "rest_framework",
     "chat",
 ]
 
 MIDDLEWARE = [
     "django_grip.GripMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
 ]
 
 REST_FRAMEWORK = {
-    # Session auth without CSRF enforcement: the only authenticated
-    # mutations travel over the websocket, and this is an internal PoC api.
-    "DEFAULT_AUTHENTICATION_CLASSES": ["chat.auth.CsrfExemptSessionAuthentication"],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+}
+
+SIMPLE_JWT = {
+    # generous access lifetime so the PoC front can skip the refresh dance
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
 }
 
 ROOT_URLCONF = "config.urls"
