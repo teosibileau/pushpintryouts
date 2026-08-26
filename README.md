@@ -29,16 +29,11 @@ control port (5561) via `django-grip`.
   HackSoft-style layout: `services.py` and `selectors.py` hold the
   logic, `apis.py` and `views.py` stay thin.
 - `front/`: React + Vite, one WebSocket plus a few fetch calls.
-- `pushpin/`: a two-line image baking in the routes file
-  (`* django:8000,over_http`).
+- `.docker/`: the Dockerfiles (backend, front, pushpin) and pushpin's
+  routes file (`* django:8000,over_http`).
 - Postgres 16 for users, messages and live connections.
 
 ## Run
-
-Note for colima users: the VM must mount this directory for the front
-bind mount to work, e.g. `colima start --mount "$PWD:w"`. The pushpin
-routes file is baked into a small derived image instead of bind-mounted
-for the same reason.
 
 ```
 ahoy docker build
@@ -47,6 +42,11 @@ ahoy docker log
 ```
 
 Open http://localhost:5173 in two browsers, register two users, chat.
+
+Everything is baked into images at build time, with no bind mounts, so
+after changing code rebuild the affected service:
+`ahoy docker build front && ahoy docker up front` (same for django).
+
 Other useful commands: `ahoy test` (pytest in the django container),
 `ahoy manage <cmd>` (manage.py), `ahoy docker ps|stop|reset|destroy`.
 
