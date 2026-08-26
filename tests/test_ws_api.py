@@ -5,7 +5,7 @@ from django.test import RequestFactory
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from chat import services
-from chat.api import WsView
+from chat.api import IgnoreAcceptHeader, WsView, require_wscontext
 from chat.models import Connection, Message
 from chat.ws import ChatConnection
 from tests.conftest import FakeWs
@@ -26,6 +26,51 @@ def handshake(ws, token=None):
     request = RequestFactory().post(path)
     request.wscontext = ws
     return WsView.as_view()(request)
+
+
+class TestIgnoreAcceptHeader:
+    def test_picks_the_first_parser_whatever_the_content_type(self):
+        request = RequestFactory().post(
+            "/ws", data=b"OPEN\r\n", content_type="application/websocket-events"
+        )
+        parsers = [object(), object()]
+        assert IgnoreAcceptHeader().select_parser(request, parsers) is parsers[0]
+
+    def test_picks_the_first_renderer_whatever_the_accept_header(self):
+        request = RequestFactory().post(
+            "/ws", HTTP_ACCEPT="application/websocket-events"
+        )
+
+        class FakeRenderer:
+            media_type = "application/json"
+
+        renderers = [FakeRenderer(), object()]
+        selected, media_type = IgnoreAcceptHeader().select_renderer(request, renderers)
+        assert selected is renderers[0]
+        assert media_type == "application/json"
+
+
+class TestRequireWscontext:
+    class FakeView:
+        @require_wscontext
+        def post(self, request):
+            return "handled"
+
+    def _request(self, wscontext):
+        request = RequestFactory().post("/ws")
+        request.wscontext = wscontext
+        return request
+
+    def test_rejects_a_request_without_wscontext(self):
+        response = self.FakeView().post(self._request(None))
+        assert response.status_code == 400
+        assert response.content == b"websocket only"
+
+    def test_passes_a_grip_request_through(self):
+        assert self.FakeView().post(self._request(FakeWs())) == "handled"
+
+    def test_preserves_the_wrapped_method_name(self):
+        assert self.FakeView.post.__name__ == "post"
 
 
 class TestNonWebsocketRequest:
