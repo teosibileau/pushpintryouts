@@ -18,9 +18,9 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: poetry install --no-root
         working-directory: backend
-      - run: poetry run ruff check ..
+      - run: poetry run ruff check .
         working-directory: backend
-      - run: poetry run ruff format --check ..
+      - run: poetry run ruff format --check .
         working-directory: backend
 
   backend-tests:
@@ -55,7 +55,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: poetry install --no-root
         working-directory: backend
-      - run: poetry run pytest ../tests
+      - run: poetry run pytest
         working-directory: backend
 
   front-build:

@@ -12,4 +12,4 @@ commands:
 
   manage:
     usage: Run a Django management command
-    cmd: ahoy docker compose exec django python backend/manage.py $@
+    cmd: ahoy docker compose exec django python manage.py $@

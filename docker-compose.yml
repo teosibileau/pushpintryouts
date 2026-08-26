@@ -15,8 +15,8 @@ services:
 
   django:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: ../.docker/backend/Dockerfile
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -24,24 +24,22 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST: postgres
       GRIP_URL: http://pushpin:5561
-    command: sh -c "cd backend && python manage.py migrate && gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2"
+    command: sh -c "python manage.py migrate && gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2"
     depends_on:
       postgres:
         condition: service_healthy
 
   pushpin:
-    build: ./pushpin
+    build: ./.docker/pushpin
     depends_on:
       - django
     # ports:
     #   - "7999:7999"  # uncomment to curl pushpin directly from the host
 
   front:
-    image: node:22-slim
-    working_dir: /app
-    volumes:
-      - ./front:/app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    build:
+      context: ./front
+      dockerfile: ../.docker/front/Dockerfile
     ports:
       - "5173:5173"
     depends_on:
