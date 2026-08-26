@@ -19,6 +19,21 @@ package-mode = false
 pytest = ">=8.0"
 pytest-django = ">=4.8"
 ruff = "0.16.4"
+django-types = "^0.24.0"
+djangorestframework-types = "^0.9.0"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+
+[[tool.pyright.executionEnvironments]]
+# tests duck-type requests and sockets on purpose
+root = "tests"
+extraPaths = ["."]
+reportAttributeAccessIssue = "none"
+reportArgumentType = "none"
+reportOptionalMemberAccess = "none"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"

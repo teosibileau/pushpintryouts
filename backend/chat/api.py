@@ -67,10 +67,11 @@ class IgnoreAcceptHeader(BaseContentNegotiation):
     offers; the view answers with plain HttpResponses anyway."""
 
     def select_parser(self, request, parsers):
-        return parsers[0]
+        return next(iter(parsers))
 
     def select_renderer(self, request, renderers, format_suffix=None):
-        return renderers[0], renderers[0].media_type
+        renderer = next(iter(renderers))
+        return renderer, renderer.media_type
 
 
 class QueryTokenAuthentication(JWTAuthentication):
@@ -82,7 +83,7 @@ class QueryTokenAuthentication(JWTAuthentication):
         if not token:
             return None
         try:
-            validated = self.get_validated_token(token)
+            validated = self.get_validated_token(token.encode())
         except (InvalidToken, TokenError):
             return None
         return self.get_user(validated), validated
@@ -103,7 +104,8 @@ def require_wscontext(method):
 class WsView(APIView):
     authentication_classes = [QueryTokenAuthentication]
     permission_classes = [AllowAny]
-    content_negotiation_class = IgnoreAcceptHeader
+    # the drf stubs mistype this attribute as str | None
+    content_negotiation_class = IgnoreAcceptHeader  # pyright: ignore[reportAssignmentType]
 
     @require_wscontext
     def post(self, request):
