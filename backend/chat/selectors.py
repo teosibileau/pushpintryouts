@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from chat.models import Connection, Message
 
 

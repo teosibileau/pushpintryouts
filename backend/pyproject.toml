@@ -43,7 +43,7 @@ pythonpath = ["."]
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py38"
 src = ["."]
 extend-exclude = ["chat/migrations"]
 

@@ -45,5 +45,8 @@ DATABASES = {
 
 GRIP_URL = os.environ.get("GRIP_URL", "http://pushpin:5561")
 
+# identifies which backend variant answered, e.g. django5-py312
+SERVED_BY = os.environ.get("SERVED_BY", "unknown")
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 USE_TZ = True

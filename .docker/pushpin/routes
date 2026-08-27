@@ -1,1 +1,3 @@
-* django:8000,over_http
+# django-pool resolves to both backends (docker round-robin dns);
+# pushpin's own multi-target syntax is failover, not balancing
+* django-pool:8000,over_http
