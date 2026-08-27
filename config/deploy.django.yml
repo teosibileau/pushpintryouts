@@ -1,0 +1,61 @@
+# Kamal app: the modern backend (Django 5 / py3.12). Not proxied; Pushpin
+# reaches it through the django-pool alias, shared with the legacy backend
+# so docker's round-robin DNS balances between the two. This config also
+# owns the schema: it runs migrate on boot, and it owns the postgres
+# accessory:
+#
+#   kamal accessory boot db -c config/deploy.django.yml   # once
+#   kamal deploy -c config/deploy.django.yml
+#
+# After a cold start of the whole stack (Pushpin lost every socket):
+#
+#   kamal app exec -c config/deploy.django.yml "python manage.py wipe_connections"
+
+service: ppchat-django
+
+image: teosibileau/pushpintryouts/django
+
+registry:
+  server: ghcr.io
+  username: teosibileau
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+  dockerfile: .docker/backend/Dockerfile
+  context: backend
+
+servers:
+  web:
+    hosts:
+      - <%= ENV.fetch("WEB_SERVER_IP") %>
+    proxy: false
+    cmd: sh -c "python manage.py migrate && gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2"
+    options:
+      network-alias: django-pool
+
+env:
+  clear:
+    POSTGRES_DB: ppchat
+    POSTGRES_USER: ppchat
+    POSTGRES_HOST: ppchat-django-db
+    GRIP_URL: http://ppchat-pushpin:5561
+    SERVED_BY: django5-py312
+  secret:
+    - DJANGO_SECRET_KEY
+    - POSTGRES_PASSWORD
+
+accessories:
+  db:
+    image: postgres:16
+    host: <%= ENV.fetch("WEB_SERVER_IP") %>
+    # data survives accessory reboots and reboots of the box
+    directories:
+      - /var/lib/ppchat-postgres:/var/lib/postgresql/data
+    env:
+      clear:
+        POSTGRES_DB: ppchat
+        POSTGRES_USER: ppchat
+      secret:
+        - POSTGRES_PASSWORD
