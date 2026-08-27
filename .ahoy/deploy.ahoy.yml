@@ -1,0 +1,38 @@
+ahoyapi: v2
+commands:
+  env:
+    usage: Run any command with .env.infra loaded (e.g. ahoy deploy env kamal app logs -c config/deploy.front.yml)
+    cmd: |
+      set -a; . ./.env.infra; set +a
+      $@
+  dns:
+    usage: Apply the tofu root (the ppchat DNS record).
+    cmd: |
+      set -a; . ./.env.infra; set +a
+      tofu -chdir=infra init -input=false >/dev/null
+      tofu -chdir=infra apply $@
+  db:
+    usage: Boot the postgres accessory (once per box).
+    cmd: ahoy deploy env kamal accessory boot db -c config/deploy.django.yml $@
+  django:
+    usage: Deploy the modern backend (runs migrations).
+    cmd: ahoy deploy env kamal deploy -c config/deploy.django.yml $@
+  django-legacy:
+    usage: Deploy the legacy backend.
+    cmd: ahoy deploy env kamal deploy -c config/deploy.django-legacy.yml $@
+  pushpin:
+    usage: Deploy the pushpin gateway.
+    cmd: ahoy deploy env kamal deploy -c config/deploy.pushpin.yml $@
+  front:
+    usage: Deploy the front (nginx + dist, the public app).
+    cmd: ahoy deploy env kamal deploy -c config/deploy.front.yml $@
+  all:
+    usage: Deploy everything in dependency order (db must be booted already).
+    cmd: |
+      ahoy deploy django &&
+      ahoy deploy django-legacy &&
+      ahoy deploy pushpin &&
+      ahoy deploy front
+  wipe-connections:
+    usage: Wipe stale connection rows after a cold start of the stack.
+    cmd: ahoy deploy env kamal app exec -c config/deploy.django.yml "python manage.py wipe_connections"
