@@ -1,9 +1,14 @@
 import json
 
 from django.conf import settings
+from gripcontrol import websocket_control_message
 
 from chat import selectors, services
 from chat.serializers import MessageFrameSerializer
+
+# Cloudflare's proxy drops websockets idle for ~100s; Pushpin pings the
+# client well inside that window (browsers answer pings transparently).
+KEEPALIVE_TIMEOUT_SECONDS = 45
 
 
 class ChatConnection:
@@ -53,6 +58,16 @@ class ChatConnection:
         roster = sorted(set(selectors.online_usernames()) | {user.username})
         self._send({"event": "roster", "usernames": roster})
         self.ws.subscribe(services.CHAT_CHANNEL)
+        self.ws.send_control(
+            websocket_control_message(
+                "keep-alive",
+                {
+                    "message-type": "ping",
+                    "content": "{}",
+                    "timeout": KEEPALIVE_TIMEOUT_SECONDS,
+                },
+            )
+        )
         self._send(
             {
                 "event": "authenticated",

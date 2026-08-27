@@ -5,6 +5,7 @@ from django.test import RequestFactory
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from chat import services
+from chat import ws as chat_ws
 from chat.api import IgnoreAcceptHeader, WsView, require_wscontext
 from chat.models import Connection, Message
 from chat.ws import ChatConnection
@@ -125,6 +126,18 @@ class TestHandshake:
         ]
         assert ws.subscribed == [services.CHAT_CHANNEL]
         assert Connection.objects.filter(connection_id=ws.id, user=alice).exists()
+
+    def test_enables_keepalive_pings(self, alice, published):
+        ws = FakeWs(opening=True)
+        handshake(ws, token=access_token(alice))
+        assert ws.control == [
+            {
+                "type": "keep-alive",
+                "message-type": "ping",
+                "content": "{}",
+                "timeout": chat_ws.KEEPALIVE_TIMEOUT_SECONDS,
+            }
+        ]
 
 
 class TestFrameParsing:

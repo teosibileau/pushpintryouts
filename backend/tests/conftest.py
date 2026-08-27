@@ -16,6 +16,7 @@ class FakeWs:
         self.sent = []
         self.subscribed = []
         self.incoming = []
+        self.control = []
 
     def is_opening(self):
         return self.opening
@@ -37,6 +38,9 @@ class FakeWs:
 
     def subscribe(self, channel):
         self.subscribed.append(channel)
+
+    def send_control(self, raw):
+        self.control.append(json.loads(raw))
 
     def events(self, name):
         return [f for f in self.sent if f.get("event") == name]
