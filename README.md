@@ -29,9 +29,29 @@ control port (5561) via `django-grip`.
   HackSoft-style layout: `services.py` and `selectors.py` hold the
   logic, `apis.py` and `views.py` stay thin.
 - `front/`: React + Vite, one WebSocket plus a few fetch calls.
-- `.docker/`: the Dockerfiles (backend, front, pushpin) and pushpin's
-  routes file (`* django:8000,over_http`).
+- `.docker/`: the Dockerfiles (backend, backend-legacy, front,
+  pushpin) and pushpin's routes file.
 - Postgres 16 for users, messages and live connections.
+
+## Dual runtime
+
+The same backend code runs as two services: `django` (Django 5,
+Python 3.12, poetry-managed) and `django-legacy` (Django 3.2 LTS,
+Python 3.8, installed from `requirements-legacy*.txt` generated off a
+py3.8 lock). Both share Postgres and the JWT secret, so either can
+serve any request: all cross-request state (the connection table,
+messages) lives in the database, which is what makes balancing safe.
+Pushpin reaches them through the `django-pool` docker dns alias
+(round-robin); pushpin's own multi-target routes are failover only.
+Only the modern service runs migrations and the boot wipe of stale
+connections. The `authenticated` frame carries a `served_by` field so
+you can watch the balancing.
+
+Rules while the legacy service exists: python 3.8 is the syntax floor
+(ruff target-version enforces it; new-style annotations are fine under
+`from __future__ import annotations`), stick to APIs present in both
+Django 3.2 and 5.x, and regenerate the legacy requirements when deps
+change (`poetry show --only main/dev` from a py3.8 lock).
 
 ## Run
 
@@ -76,7 +96,7 @@ restart.
 
 `ahoy test` runs the pytest suite (services, frame protocol, api
 endpoints, handshake auth) against Postgres inside the stack. GitHub
-Actions runs three jobs on push and PR: ruff lint and format check,
-the pytest suite against a Postgres service, and a Vite production
-build. Ruff and the test deps are in the Poetry dev group, so the same
+Actions runs the quality job (pre-commit), the pytest suite twice (a
+matrix over the modern and legacy runtimes) against a Postgres
+service, and a Vite production build. Ruff and the test deps are in the Poetry dev group, so the same
 checks run identically in the container, locally and in CI.

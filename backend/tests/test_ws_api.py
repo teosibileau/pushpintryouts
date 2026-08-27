@@ -107,7 +107,8 @@ class TestHandshake:
         assert response.status_code == 401
         assert not ws.accepted
 
-    def test_authenticated_enters_chat(self, alice, published):
+    def test_authenticated_enters_chat(self, alice, published, settings):
+        settings.SERVED_BY = "test-backend"
         services.message_create(user=alice, text="old message")
         ws = FakeWs(opening=True)
         response = handshake(ws, token=access_token(alice))
@@ -116,7 +117,11 @@ class TestHandshake:
         assert [m["text"] for m in ws.events("message")] == ["old message"]
         assert ws.events("roster") == [{"event": "roster", "usernames": ["alice"]}]
         assert ws.events("authenticated") == [
-            {"event": "authenticated", "username": "alice"}
+            {
+                "event": "authenticated",
+                "username": "alice",
+                "served_by": "test-backend",
+            }
         ]
         assert ws.subscribed == [services.CHAT_CHANNEL]
         assert Connection.objects.filter(connection_id=ws.id, user=alice).exists()

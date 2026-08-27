@@ -1,5 +1,7 @@
 import json
 
+from django.conf import settings
+
 from chat import selectors, services
 from chat.serializers import MessageFrameSerializer
 
@@ -51,7 +53,13 @@ class ChatConnection:
         roster = sorted(set(selectors.online_usernames()) | {user.username})
         self._send({"event": "roster", "usernames": roster})
         self.ws.subscribe(services.CHAT_CHANNEL)
-        self._send({"event": "authenticated", "username": user.username})
+        self._send(
+            {
+                "event": "authenticated",
+                "username": user.username,
+                "served_by": settings.SERVED_BY,
+            }
+        )
         services.connection_open(connection_id=self.ws.id, user=user)
 
     def _pump(self) -> None:

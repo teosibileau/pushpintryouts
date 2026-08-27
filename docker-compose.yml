@@ -17,22 +17,49 @@ services:
     build:
       context: ./backend
       dockerfile: ../.docker/backend/Dockerfile
-    environment:
+    environment: &django-env
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST: postgres
       GRIP_URL: http://pushpin:5561
-    command: sh -c "python manage.py migrate && gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2"
+      SERVED_BY: django5-py312
+    # the modern service is the only migration runner; the stale-connection
+    # wipe happens here (once per stack boot) rather than per-service boot,
+    # so restarting one backend cannot wipe the other's live connections
+    command: sh -c "python manage.py migrate && python manage.py shell -c 'from chat.models import Connection; Connection.objects.all().delete()' && gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2"
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - django-pool
+
+  django-legacy:
+    build:
+      context: ./backend
+      dockerfile: ../.docker/backend-legacy/Dockerfile
+    environment:
+      <<: *django-env
+      SERVED_BY: django32-py38
+    command: gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      django:
+        condition: service_started
+    networks:
+      default:
+        aliases:
+          - django-pool
 
   pushpin:
     build: ./.docker/pushpin
     depends_on:
       - django
+      - django-legacy
     # ports:
     #   - "7999:7999"  # uncomment to curl pushpin directly from the host
 
