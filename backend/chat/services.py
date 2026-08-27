@@ -33,7 +33,8 @@ def user_register(*, username: str, password: str) -> User | None:
 
 
 def user_login(*, username: str, password: str) -> User | None:
-    return authenticate(username=username, password=password)
+    user = authenticate(username=username, password=password)
+    return user if isinstance(user, User) else None
 
 
 def connection_open(*, connection_id: str, user: User) -> None:
