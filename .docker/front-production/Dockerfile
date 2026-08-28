@@ -1,7 +1,10 @@
 # Production front image: build the Vite dist, serve it with nginx, and
 # proxy /api + /ws to the pushpin container over the kamal docker network.
 # Built by Kamal from the repo root (see config/deploy.front.yml).
-FROM node:22-slim AS build
+# --platform=$BUILDPLATFORM: the dist is static files, so the node stage
+# runs natively on the build host (QEMU-emulated Go binaries like esbuild
+# crash); only the nginx stage below is built for the target platform
+FROM --platform=$BUILDPLATFORM node:22-slim AS build
 WORKDIR /app
 COPY front/package.json front/package-lock.json ./
 RUN npm ci
