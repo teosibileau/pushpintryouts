@@ -30,6 +30,25 @@ commands:
       ahoy deploy django-legacy &&
       ahoy deploy pushpin &&
       ahoy deploy front
+  logs:
+    usage: Follow logs (`ahoy deploy logs [django|django-legacy|pushpin|front|db|proxy|backends]`; backends = both djangos, default django).
+    cmd: |
+      svc=${1:-django}
+      shift 2>/dev/null || true
+      case "$svc" in
+        db)
+          ahoy deploy env kamal accessory logs db -f -c config/deploy.django.yml "$@" ;;
+        proxy)
+          ahoy deploy env kamal proxy logs -f -c config/deploy.front.yml "$@" ;;
+        backends)
+          # both djangos at once, each line tagged with its runtime
+          trap 'kill 0' INT TERM
+          ahoy deploy env kamal app logs -f -c config/deploy.django.yml "$@" 2>&1 | sed -u 's/^/[modern] /' &
+          ahoy deploy env kamal app logs -f -c config/deploy.django-legacy.yml "$@" 2>&1 | sed -u 's/^/[legacy] /' &
+          wait ;;
+        *)
+          ahoy deploy env kamal app logs -f -c config/deploy.$svc.yml "$@" ;;
+      esac
   release-lock:
     usage: Release a stale deploy lock left by an aborted run (`ahoy deploy release-lock [front]`; locks are per service, default django).
     cmd: ahoy deploy env kamal lock release -c config/deploy.${1:-django}.yml
