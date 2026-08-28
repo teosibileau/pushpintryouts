@@ -43,8 +43,7 @@ serve any request: all cross-request state (the connection table,
 messages) lives in the database, which is what makes balancing safe.
 Pushpin reaches them through the `django-pool` docker dns alias
 (round-robin); pushpin's own multi-target routes are failover only.
-Only the modern service runs migrations and the boot wipe of stale
-connections. The `authenticated` frame carries a `served_by` field so
+Only the modern service runs migrations. The `authenticated` frame carries a `served_by` field so
 you can watch the balancing.
 
 Rules while the legacy service exists: python 3.8 is the syntax floor
@@ -88,9 +87,10 @@ connection to the group channel. The only client → server frame is
 Frames after the handshake carry no browser cookie, so a Postgres
 table maps Pushpin's connection id to a user, written at handshake and
 removed on disconnect. Presence broadcasts fire on a user's first
-connection and last disconnect, so extra tabs stay silent. The table
-is wiped on Django startup since sockets cannot survive a stack
-restart.
+connection and last disconnect, so extra tabs stay silent. After a
+cold start of the stack the rows are stale (sockets cannot survive a
+Pushpin restart); the `wipe_connections` management command cleans
+them up.
 
 ## Tests and CI
 
@@ -100,3 +100,44 @@ Actions runs the quality job (pre-commit), the pytest suite twice (a
 matrix over the modern and legacy runtimes) against a Postgres
 service, and a Vite production build. Ruff and the test deps are in the Poetry dev group, so the same
 checks run identically in the container, locally and in CI.
+
+## Deployment
+
+Deployed with Kamal to a shared Hetzner box, public at
+`https://ppchat.corvus.observer`, one deploy config per piece
+(`config/deploy.*.yml`):
+
+- **front**: nginx baking the Vite production build
+  (`.docker/front-production/`). The only app registered with
+  kamal-proxy: Cloudflare (proxied DNS, TLS Full strict) terminates the
+  browser, kamal-proxy routes the hostname (TLS via the corvus.observer
+  Origin CA pair) and nginx does the path split, serving the dist and
+  proxying `/api` + `/ws` to pushpin over the kamal docker network.
+- **pushpin**: internal, reachable as `ppchat-pushpin` by network alias.
+- **django** and **django-legacy**: internal, both aliased `django-pool`
+  so docker round-robin DNS balances between them, same as compose. Only
+  the modern app runs migrations and owns the **db** accessory
+  (postgres 16, host directory for data).
+
+Idle sockets survive Cloudflare's ~100s idle timeout because the
+backend enables Pushpin's GRIP keep-alive on handshake (a ping every 45
+idle seconds; browsers answer transparently).
+
+Secrets come from the environment through `.kamal/secrets`: copy
+`.env.infra.example` to `.env.infra` (git-ignored) and fill it in,
+including the Origin CA pair from the MOVE platform tofu output. The
+DNS record itself is owned here: `infra/` is a minimal tofu root (local
+git-ignored state) managing the proxied A record in MOVE's Cloudflare
+zone; recovery from lost state is
+`tofu import cloudflare_dns_record.ppchat <zone_id>/<record_id>`.
+
+Everything is wrapped in ahoy:
+
+    ahoy deploy dns            # apply the DNS record
+    ahoy deploy db             # boot the postgres accessory (once)
+    ahoy deploy all            # django, django-legacy, pushpin, front
+    ahoy deploy wipe-connections  # stale rows after a cold start
+
+After a cold start of the whole stack (Pushpin lost every socket) run
+`wipe-connections`; never while sockets are live. Ghost roster entries
+after a pushpin restart clear as users reconnect.

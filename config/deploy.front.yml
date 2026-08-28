@@ -1,0 +1,37 @@
+# Kamal app: the front. nginx serving the built Vite dist and proxying
+# /api + /ws to the pushpin app over the kamal network (see
+# .docker/front-production/). The only publicly routed app:
+#
+#   kamal deploy -c config/deploy.front.yml
+
+service: ppchat-front
+
+image: teosibileau/pushpintryouts/front
+
+registry:
+  server: ghcr.io
+  username: teosibileau
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  # the box is x86; build linux/amd64 wherever the build runs
+  arch: amd64
+  dockerfile: .docker/front-production/Dockerfile
+  context: .
+
+servers:
+  web:
+    - <%= ENV.fetch("WEB_SERVER_IP") %>
+
+proxy:
+  host: ppchat.corvus.observer
+  app_port: 80
+  healthcheck:
+    path: /up
+  # corvus.observer Origin CA pair, minted by the MOVE platform tofu root
+  # (tofu output origin_certificate_pem / origin_private_key_pem there);
+  # copied into .env.infra, resolved through .kamal/secrets
+  ssl:
+    certificate_pem: CLOUDFLARE_ORIGIN_CERT_PEM
+    private_key_pem: CLOUDFLARE_ORIGIN_KEY_PEM

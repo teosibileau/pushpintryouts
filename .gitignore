@@ -4,3 +4,7 @@ __pycache__/
 node_modules/
 front/dist/
 .DS_Store
+.env.infra
+infra/.terraform/
+infra/terraform.tfstate*
+infra/.terraform.lock.hcl

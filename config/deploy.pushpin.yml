@@ -1,0 +1,28 @@
+# Kamal app: pushpin, the GRIP gateway. Not registered with kamal-proxy;
+# public traffic reaches it through the front's nginx via the stable
+# network alias (kamal container names carry the version):
+#
+#   kamal deploy -c config/deploy.pushpin.yml
+
+service: ppchat-pushpin
+
+image: teosibileau/pushpintryouts/pushpin
+
+registry:
+  server: ghcr.io
+  username: teosibileau
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+  dockerfile: .docker/pushpin/Dockerfile
+  context: .docker/pushpin
+
+servers:
+  web:
+    hosts:
+      - <%= ENV.fetch("WEB_SERVER_IP") %>
+    proxy: false
+    options:
+      network-alias: ppchat-pushpin

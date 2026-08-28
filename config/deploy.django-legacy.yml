@@ -1,0 +1,41 @@
+# Kamal app: the legacy backend (Django 3.2 / py3.8). Identical codebase,
+# same django-pool alias as the modern app so Pushpin balances between
+# them. Never migrates (the modern config owns the schema); deploy it
+# after deploy.django.yml:
+#
+#   kamal deploy -c config/deploy.django-legacy.yml
+
+service: ppchat-django-legacy
+
+image: teosibileau/pushpintryouts/django-legacy
+
+registry:
+  server: ghcr.io
+  username: teosibileau
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+  dockerfile: .docker/backend-legacy/Dockerfile
+  context: backend
+
+servers:
+  web:
+    hosts:
+      - <%= ENV.fetch("WEB_SERVER_IP") %>
+    proxy: false
+    cmd: gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2
+    options:
+      network-alias: django-pool
+
+env:
+  clear:
+    POSTGRES_DB: ppchat
+    POSTGRES_USER: ppchat
+    POSTGRES_HOST: ppchat-django-db
+    GRIP_URL: http://ppchat-pushpin:5561
+    SERVED_BY: django32-py38
+  secret:
+    - DJANGO_SECRET_KEY
+    - POSTGRES_PASSWORD

@@ -6,6 +6,16 @@ commands:
     imports:
       - .ahoy/docker.ahoy.yml
 
+  infra:
+    usage: Manage the tofu root (the ppchat DNS record)
+    imports:
+      - .ahoy/infra.ahoy.yml
+
+  deploy:
+    usage: Deploy to the box with Kamal (sources .env.infra)
+    imports:
+      - .ahoy/deploy.ahoy.yml
+
   test:
     usage: Run the Django test suite
     cmd: ahoy docker compose exec django pytest $@

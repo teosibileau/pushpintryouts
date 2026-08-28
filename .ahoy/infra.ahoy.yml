@@ -1,0 +1,64 @@
+ahoyapi: v2
+# Adapted from MOVE's infra tasks, minus everything a local-state root
+# doesn't need (no R2 bucket, no backend config, no var files). Each
+# command with credentials loads .env.infra via ahoy's env directive and
+# delegates the missing-file check to check-env, because ahoy silently
+# ignores an absent env file and would run against empty variables.
+commands:
+  check-env:
+    usage: Fail unless .env.infra exists (operator credentials; see .env.infra.example).
+    cmd: |
+      [ -f .env.infra ] || { echo "Error: missing .env.infra. Run 'cp .env.infra.example .env.infra' and fill it in." >&2; exit 1; }
+
+  init:
+    usage: tofu init (local state).
+    cmd: cd infra && tofu init "$@"
+
+  plan:
+    usage: tofu plan for the ppchat DNS record.
+    env:
+      - .env.infra
+    cmd: |
+      ahoy infra check-env || exit 1
+      cd infra && tofu plan "$@"
+
+  apply:
+    usage: tofu apply (asks for confirmation).
+    env:
+      - .env.infra
+    cmd: |
+      ahoy infra check-env || exit 1
+      cd infra && tofu apply "$@"
+
+  destroy:
+    usage: tofu destroy - removes the ppchat DNS record. Asks for confirmation.
+    env:
+      - .env.infra
+    cmd: |
+      ahoy infra check-env || exit 1
+      cd infra && tofu destroy "$@"
+
+  import:
+    usage: Recover lost state (`ahoy infra import <record-id>`; the record id from the Cloudflare dashboard).
+    env:
+      - .env.infra
+    cmd: |
+      ahoy infra check-env || exit 1
+      [ -n "$1" ] || { echo "Usage: ahoy infra import <record-id>" >&2; exit 1; }
+      cd infra && tofu import cloudflare_dns_record.ppchat "${TF_VAR_cloudflare_zone_id}/$1"
+
+  output:
+    usage: tofu output.
+    env:
+      - .env.infra
+    cmd: |
+      ahoy infra check-env || exit 1
+      cd infra && tofu output "$@"
+
+  fmt:
+    usage: tofu fmt over infra/.
+    cmd: cd infra && tofu fmt -recursive "$@"
+
+  validate:
+    usage: tofu validate (no credentials needed).
+    cmd: cd infra && tofu validate "$@"

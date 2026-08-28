@@ -1,0 +1,59 @@
+ahoyapi: v2
+commands:
+  env:
+    usage: Run any command with .env.infra loaded (e.g. ahoy deploy env kamal app logs -c config/deploy.front.yml)
+    cmd: |
+      set -a; . ./.env.infra; set +a
+      $@
+  dns:
+    usage: Apply the tofu root (alias for ahoy infra apply).
+    cmd: ahoy infra init >/dev/null && ahoy infra apply $@
+  db:
+    usage: Boot the postgres accessory (once per box).
+    cmd: ahoy deploy env kamal accessory boot db -c config/deploy.django.yml $@
+  django:
+    usage: Deploy the modern backend (runs migrations).
+    cmd: ahoy deploy env kamal deploy -c config/deploy.django.yml $@
+  django-legacy:
+    usage: Deploy the legacy backend.
+    cmd: ahoy deploy env kamal deploy -c config/deploy.django-legacy.yml $@
+  pushpin:
+    usage: Deploy the pushpin gateway.
+    cmd: ahoy deploy env kamal deploy -c config/deploy.pushpin.yml $@
+  front:
+    usage: Deploy the front (nginx + dist, the public app).
+    cmd: ahoy deploy env kamal deploy -c config/deploy.front.yml $@
+  all:
+    usage: Deploy everything in dependency order (db must be booted already).
+    cmd: |
+      ahoy deploy django &&
+      ahoy deploy django-legacy &&
+      ahoy deploy pushpin &&
+      ahoy deploy front
+  logs:
+    usage: Follow logs (`ahoy deploy logs [django|django-legacy|pushpin|front|db|proxy|backends]`; backends = both djangos, default django).
+    cmd: |
+      svc=${1:-django}
+      shift 2>/dev/null || true
+      case "$svc" in
+        db)
+          ahoy deploy env kamal accessory logs db -f -c config/deploy.django.yml "$@" ;;
+        proxy)
+          ahoy deploy env kamal proxy logs -f -c config/deploy.front.yml "$@" ;;
+        backends)
+          # both djangos at once, each line tagged with its runtime
+          trap 'kill 0' INT TERM
+          # the ssh stream ends lines with \r\n; strip the \r or the
+          # prefixed lines staircase across the terminal
+          ahoy deploy env kamal app logs -f -c config/deploy.django.yml "$@" 2>&1 | sed -u -e 's/\r$//' -e 's/^/[modern] /' &
+          ahoy deploy env kamal app logs -f -c config/deploy.django-legacy.yml "$@" 2>&1 | sed -u -e 's/\r$//' -e 's/^/[legacy] /' &
+          wait ;;
+        *)
+          ahoy deploy env kamal app logs -f -c config/deploy.$svc.yml "$@" ;;
+      esac
+  release-lock:
+    usage: Release a stale deploy lock left by an aborted run (`ahoy deploy release-lock [front]`; locks are per service, default django).
+    cmd: ahoy deploy env kamal lock release -c config/deploy.${1:-django}.yml
+  wipe-connections:
+    usage: Wipe stale connection rows after a cold start of the stack.
+    cmd: ahoy deploy env kamal app exec -c config/deploy.django.yml "python manage.py wipe_connections"
