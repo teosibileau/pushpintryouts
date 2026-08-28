@@ -25,7 +25,7 @@ servers:
     hosts:
       - <%= ENV.fetch("WEB_SERVER_IP") %>
     proxy: false
-    cmd: gunicorn config.wsgi -b 0.0.0.0:8000 --workers 2
+    cmd: gunicorn config.wsgi -b 0.0.0.0:8000 --workers 4
     options:
       network-alias: django-pool
 
