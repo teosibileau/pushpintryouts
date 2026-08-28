@@ -43,8 +43,10 @@ commands:
         backends)
           # both djangos at once, each line tagged with its runtime
           trap 'kill 0' INT TERM
-          ahoy deploy env kamal app logs -f -c config/deploy.django.yml "$@" 2>&1 | sed -u 's/^/[modern] /' &
-          ahoy deploy env kamal app logs -f -c config/deploy.django-legacy.yml "$@" 2>&1 | sed -u 's/^/[legacy] /' &
+          # the ssh stream ends lines with \r\n; strip the \r or the
+          # prefixed lines staircase across the terminal
+          ahoy deploy env kamal app logs -f -c config/deploy.django.yml "$@" 2>&1 | sed -u -e 's/\r$//' -e 's/^/[modern] /' &
+          ahoy deploy env kamal app logs -f -c config/deploy.django-legacy.yml "$@" 2>&1 | sed -u -e 's/\r$//' -e 's/^/[legacy] /' &
           wait ;;
         *)
           ahoy deploy env kamal app logs -f -c config/deploy.$svc.yml "$@" ;;
