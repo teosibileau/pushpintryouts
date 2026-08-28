@@ -6,11 +6,8 @@ commands:
       set -a; . ./.env.infra; set +a
       $@
   dns:
-    usage: Apply the tofu root (the ppchat DNS record).
-    cmd: |
-      set -a; . ./.env.infra; set +a
-      tofu -chdir=infra init -input=false >/dev/null
-      tofu -chdir=infra apply $@
+    usage: Apply the tofu root (alias for ahoy infra apply).
+    cmd: ahoy infra init >/dev/null && ahoy infra apply $@
   db:
     usage: Boot the postgres accessory (once per box).
     cmd: ahoy deploy env kamal accessory boot db -c config/deploy.django.yml $@
