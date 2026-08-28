@@ -30,6 +30,9 @@ commands:
       ahoy deploy django-legacy &&
       ahoy deploy pushpin &&
       ahoy deploy front
+  release-lock:
+    usage: Release a stale deploy lock left by an aborted run (`ahoy deploy release-lock [front]`; locks are per service, default django).
+    cmd: ahoy deploy env kamal lock release -c config/deploy.${1:-django}.yml
   wipe-connections:
     usage: Wipe stale connection rows after a cold start of the stack.
     cmd: ahoy deploy env kamal app exec -c config/deploy.django.yml "python manage.py wipe_connections"
