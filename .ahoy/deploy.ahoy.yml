@@ -54,6 +54,25 @@ commands:
   release-lock:
     usage: Release a stale deploy lock left by an aborted run (`ahoy deploy release-lock [front]`; locks are per service, default django).
     cmd: ahoy deploy env kamal lock release -c config/deploy.${1:-django}.yml
+  teardown:
+    usage: Remove the whole deployment from the box (`ahoy deploy teardown --yes`). Never touches the shared kamal-proxy.
+    cmd: |
+      [ "$1" = "--yes" ] || { echo "This removes every ppchat container and image from the box (postgres data dir and DNS record survive)." >&2; echo "Run: ahoy deploy teardown --yes" >&2; exit 1; }
+      set -a; . ./.env.infra; set +a
+      # deregister the public host first so kamal-proxy stops routing to a
+      # container about to disappear; the proxy itself is shared with
+      # throwline and must never be removed (no `kamal remove` here, ever)
+      ssh "root@${WEB_SERVER_IP}" docker exec kamal-proxy kamal-proxy remove ppchat-front-web
+      kamal app remove -c config/deploy.front.yml
+      kamal app remove -c config/deploy.pushpin.yml
+      kamal app remove -c config/deploy.django-legacy.yml
+      kamal app remove -c config/deploy.django.yml
+      kamal accessory remove db -c config/deploy.django.yml -y
+      echo
+      echo "Done. Still standing, remove by hand if wanted:"
+      echo "  - the DNS record:        ahoy infra destroy"
+      echo "  - postgres data on box:  ssh root@${WEB_SERVER_IP} rm -rf /var/lib/ppchat-postgres"
+      echo "  - images in ghcr.io:     github.com -> packages"
   wipe-connections:
     usage: Wipe stale connection rows after a cold start of the stack.
     cmd: ahoy deploy env kamal app exec -c config/deploy.django.yml "python manage.py wipe_connections"
